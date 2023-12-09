@@ -271,7 +271,7 @@ def http_bot(state, model_selector, temperature, top_p, max_new_tokens, request:
             "type": "chat",
             "model": model_name,
             "start": round(start_tstamp, 4),
-            "finish": round(start_tstamp, 4),
+            "finish": round(finish_tstamp, 4),
             "state": state.dict(),
             "images": all_image_hash,
             "ip": request.client.host,
@@ -280,7 +280,7 @@ def http_bot(state, model_selector, temperature, top_p, max_new_tokens, request:
 
 title_markdown = ("""
 # 🌋 LLaVA: Large Language and Vision Assistant
-[[Project Page]](https://llava-vl.github.io) [[Paper]](https://arxiv.org/abs/2304.08485) [[Code]](https://github.com/haotian-liu/LLaVA) [[Model]](https://github.com/haotian-liu/LLaVA/blob/main/docs/MODEL_ZOO.md)
+[[Project Page](https://llava-vl.github.io)] [[Code](https://github.com/haotian-liu/LLaVA)] [[Model](https://github.com/haotian-liu/LLaVA/blob/main/docs/MODEL_ZOO.md)] | 📚 [[LLaVA](https://arxiv.org/abs/2304.08485)] [[LLaVA-v1.5](https://arxiv.org/abs/2310.03744)]
 """)
 
 tos_markdown = ("""
@@ -353,7 +353,7 @@ def build_demo(embed_mode):
                     flag_btn = gr.Button(value="⚠️  Flag", interactive=False)
                     #stop_btn = gr.Button(value="⏹️  Stop Generation", interactive=False)
                     regenerate_btn = gr.Button(value="🔄  Regenerate", interactive=False)
-                    clear_btn = gr.Button(value="🗑️  Clear history", interactive=False)
+                    clear_btn = gr.Button(value="🗑️  Clear", interactive=False)
 
         if not embed_mode:
             gr.Markdown(tos_markdown)
@@ -362,30 +362,80 @@ def build_demo(embed_mode):
 
         # Register listeners
         btn_list = [upvote_btn, downvote_btn, flag_btn, regenerate_btn, clear_btn]
-        upvote_btn.click(upvote_last_response,
-            [state, model_selector], [textbox, upvote_btn, downvote_btn, flag_btn])
-        downvote_btn.click(downvote_last_response,
-            [state, model_selector], [textbox, upvote_btn, downvote_btn, flag_btn])
-        flag_btn.click(flag_last_response,
-            [state, model_selector], [textbox, upvote_btn, downvote_btn, flag_btn])
-        regenerate_btn.click(regenerate, [state, image_process_mode],
-            [state, chatbot, textbox, imagebox] + btn_list).then(
-            http_bot, [state, model_selector, temperature, top_p, max_output_tokens],
-            [state, chatbot] + btn_list)
-        clear_btn.click(clear_history, None, [state, chatbot, textbox, imagebox] + btn_list)
+        upvote_btn.click(
+            upvote_last_response,
+            [state, model_selector],
+            [textbox, upvote_btn, downvote_btn, flag_btn],
+            queue=False
+        )
+        downvote_btn.click(
+            downvote_last_response,
+            [state, model_selector],
+            [textbox, upvote_btn, downvote_btn, flag_btn],
+            queue=False
+        )
+        flag_btn.click(
+            flag_last_response,
+            [state, model_selector],
+            [textbox, upvote_btn, downvote_btn, flag_btn],
+            queue=False
+        )
 
-        textbox.submit(add_text, [state, textbox, imagebox, image_process_mode], [state, chatbot, textbox, imagebox] + btn_list
-            ).then(http_bot, [state, model_selector, temperature, top_p, max_output_tokens],
-                   [state, chatbot] + btn_list)
-        submit_btn.click(add_text, [state, textbox, imagebox, image_process_mode], [state, chatbot, textbox, imagebox] + btn_list
-            ).then(http_bot, [state, model_selector, temperature, top_p, max_output_tokens],
-                   [state, chatbot] + btn_list)
+        regenerate_btn.click(
+            regenerate,
+            [state, image_process_mode],
+            [state, chatbot, textbox, imagebox] + btn_list,
+            queue=False
+        ).then(
+            http_bot,
+            [state, model_selector, temperature, top_p, max_output_tokens],
+            [state, chatbot] + btn_list
+        )
+
+        clear_btn.click(
+            clear_history,
+            None,
+            [state, chatbot, textbox, imagebox] + btn_list,
+            queue=False
+        )
+
+        textbox.submit(
+            add_text,
+            [state, textbox, imagebox, image_process_mode],
+            [state, chatbot, textbox, imagebox] + btn_list,
+            queue=False
+        ).then(
+            http_bot,
+            [state, model_selector, temperature, top_p, max_output_tokens],
+            [state, chatbot] + btn_list
+        )
+
+        submit_btn.click(
+            add_text,
+            [state, textbox, imagebox, image_process_mode],
+            [state, chatbot, textbox, imagebox] + btn_list,
+            queue=False
+        ).then(
+            http_bot,
+            [state, model_selector, temperature, top_p, max_output_tokens],
+            [state, chatbot] + btn_list
+        )
 
         if args.model_list_mode == "once":
-            demo.load(load_demo, [url_params], [state, model_selector],
-                _js=get_window_url_params)
+            demo.load(
+                load_demo,
+                [url_params],
+                [state, model_selector],
+                _js=get_window_url_params,
+                queue=False
+            )
         elif args.model_list_mode == "reload":
-            demo.load(load_demo_refresh_model_list, None, [state, model_selector])
+            demo.load(
+                load_demo_refresh_model_list,
+                None,
+                [state, model_selector],
+                queue=False
+            )
         else:
             raise ValueError(f"Unknown model list mode: {args.model_list_mode}")
 
@@ -397,7 +447,7 @@ if __name__ == "__main__":
     parser.add_argument("--host", type=str, default="0.0.0.0")
     parser.add_argument("--port", type=int)
     parser.add_argument("--controller-url", type=str, default="http://localhost:21001")
-    parser.add_argument("--concurrency-count", type=int, default=8)
+    parser.add_argument("--concurrency-count", type=int, default=10)
     parser.add_argument("--model-list-mode", type=str, default="once",
         choices=["once", "reload"])
     parser.add_argument("--share", action="store_true")
@@ -410,6 +460,11 @@ if __name__ == "__main__":
 
     logger.info(args)
     demo = build_demo(args.embed)
-    demo.queue(concurrency_count=args.concurrency_count, status_update_rate=10,
-               api_open=False).launch(
-        server_name=args.host, server_port=args.port, share=args.share)
+    demo.queue(
+        concurrency_count=args.concurrency_count,
+        api_open=False
+    ).launch(
+        server_name=args.host,
+        server_port=args.port,
+        share=args.share
+    )
